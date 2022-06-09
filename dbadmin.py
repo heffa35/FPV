@@ -1,4 +1,4 @@
-#data.db administration
+#data.db administration Frode
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -25,11 +25,7 @@ if option=='Projects':
     gb.configure_column('KO_Date', header_name=("KO_Date"), editable= True)
     gb.configure_column('Tracker_No', header_name=("Tracker_No"), editable= True)
     gb.configure_column('KO_Promised_Date', header_name=("KO_Promised_Date"), editable= True)
-    gb.configure_column('Sales_Prospect_No',hide = True)
-    gb.configure_column('Comments',hide = True)
-    gb.configure_column('Q_Amount',hide = True)
-    gb.configure_column('PO_Amount',hide = True)
-    gb.configure_column('Closed',hide = True)
+    gb.configure_columns(['Sales_Prospect_No','Comments','Q_Amount','PO_Amount','Closed'], hide=True)
     gb.configure_pagination(enabled=True, paginationAutoPageSize=True, paginationPageSize=20)
     gridOptions = gb.build()
     dta = AgGrid(data,
