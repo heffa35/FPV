@@ -50,8 +50,6 @@ if option=='Projects':
             data.to_sql(tablename, conn, if_exists='replace', index=False)
             st.legacy_caching.clear_cache()
             st.experimental_rerun()
-             
-
 elif option == 'Resources':
 
     tablename = 'tbl_Resources'
@@ -73,7 +71,6 @@ elif option == 'Resources':
     theme='streamlit',
     data_return_mode=DataReturnMode.AS_INPUT,
     update_mode=GridUpdateMode.MODEL_CHANGED)
-    
 elif option=='Actions':
     tablename = 'tbl_Actions'
     data = get_data(tablename)
@@ -179,7 +176,6 @@ elif option=='Locations':
     theme='streamlit',
     data_return_mode=DataReturnMode.AS_INPUT,
     update_mode=GridUpdateMode.MODEL_CHANGED)
-
 elif option=='Resources Hours':
     tablename = 'tbl_Resources_Hours'
     data = get_data(tablename)
