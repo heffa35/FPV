@@ -56,11 +56,11 @@ elif option == 'Resources':
     data = get_data(tablename)
     
     gb = GridOptionsBuilder.from_dataframe(data)
-    gb.configure_column('Terminated', header_name=("Terminated"), editable= True)
+    gb.configure_column('Terminated', header_name=("Terminated"), editable= True, filter=("TRUE"))
     gb.configure_column('Producer', header_name=("Producer"), editable= True)
     gb.configure_column('Last_Name', header_name=("Last_Name"), editable= True)
     gb.configure_column('First_Name', header_name=("First_Name"), editable= True)
-
+    gb.configure_columns(['Resource_Email', 'Discipline_ID', 'Manager_ID', 'Location_ID'], hide=True)
     gridOptions = gb.build()
     dta = AgGrid(data,
     gridOptions=gridOptions,
