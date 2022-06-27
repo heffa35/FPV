@@ -221,7 +221,7 @@ elif option=='Resources Hours':
             planned_hours = int(Planned_Hours)
             sql = '''INSERT INTO tbl_Resources_hours(Tracker_No,Disiplin_ID,Resource_ID,Resource_Function_ID,Planned_Hours,Actual_Hours,Progress_Percentage)
                  VALUES (?,?,?,?,?,?,?);'''
-            data_tuple=(selected_tracker_no,discipline_id,resource_id,'',planned_hours,'','')
+            data_tuple=(selected_tracker_no,discipline_id,resource_id,'',planned_hours,'','0')
             c.execute(sql,data_tuple)
             conn.commit()
 
