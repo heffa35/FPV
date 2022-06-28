@@ -1,3 +1,4 @@
+#Dette er en endring for å teste GIT i VS
 #data.db administration Frode
 import streamlit as st
 import pandas as pd
