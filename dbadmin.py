@@ -1,3 +1,4 @@
+#Dette er en endring for å teste GIT i VS
 #data.db administration Frode
 import streamlit as st
 import pandas as pd
@@ -179,18 +180,54 @@ elif option=='Locations':
 elif option=='Resources Hours':
     tablename = 'tbl_Resources_Hours'
     data = get_data(tablename)
+    names = pd.read_sql_query("SELECT Resource_ID, Last_Name, First_Name FROM tbl_Resources WHERE Producer = 'TRUE'", conn)
+    names["Full_name"]=names["Last_Name"]+' '+names["First_Name"]
 
-    gb = GridOptionsBuilder.from_dataframe(data)
-    gridOptions = gb.build()
-    dta = AgGrid(data,
-    gridOptions=gridOptions,
-    width='100%',
-    reload_data=False,
-    height=800,
-    editable=True,
-    theme='streamlit',
-    data_return_mode=DataReturnMode.AS_INPUT,
-    update_mode=GridUpdateMode.MODEL_CHANGED)
+    projectlist=pd.read_sql_query("SELECT * FROM tbl_Projects", conn)
+    projectlist['full_project']=projectlist['Tracker_No']+' --- '+projectlist['Rigname']+' --- '+projectlist['SO_Description']
+    project=st.selectbox("Projects ready for kickoff",projectlist.iloc[:,25])
+    discipline=pd.read_sql_query("SELECT * FROM tbl_disciplines",conn)
+    #gb = GridOptionsBuilder.from_dataframe(data)
+    #gridOptions = gb.build()
+    #dta = AgGrid(data,
+    #gridOptions=gridOptions,
+    #width='100%',
+    #reload_data=False,
+    #height=800,
+    #editable=True,
+    #theme='streamlit',
+    #data_return_mode=DataReturnMode.AS_INPUT,
+    #update_mode=GridUpdateMode.MODEL_CHANGED)
+
+    with st.form("New Project", clear_on_submit=True):
+        #Tracker_no=st.text_input("Tracker No")
+        Discipline=st.selectbox("Dicsipline", discipline.iloc[:,1])
+        Resource_Name=st.selectbox("Name",names.iloc[:,3])
+        Planned_Hours=st.text_input("Planned Hours")
+
+        button_check = st.form_submit_button("Add to list")
+
+
+            #if button_check:
+            #data_to_df={'Tracker_No':Tracker_no,'Rigname':Rigname,'SO_Description':SO_Description,'Received_Date':Received_date}
+            #data=data.append(data_to_df, ignore_index = True)
+            #data.to_sql(tablename, conn, if_exists='replace', index=False)
+            #st.legacy_caching.clear_cache()
+            #st.experimental_rerun()
+
+        if button_check:
+            selected_tracker_no=(project.split(' ',1)[0])
+            discipline_id=int(discipline[discipline['Discipline'].str.contains(Discipline)].iloc[:,0])
+            resource_id=int(names[names["Full_name"]==Resource_Name].iloc[:,0])
+            planned_hours = int(Planned_Hours)
+            sql = '''INSERT INTO tbl_Resources_hours(Tracker_No,Disiplin_ID,Resource_ID,Resource_Function_ID,Planned_Hours,Actual_Hours,Progress_Percentage)
+                 VALUES (?,?,?,?,?,?,?);'''
+            data_tuple=(selected_tracker_no,discipline_id,resource_id,'',planned_hours,'','0')
+            c.execute(sql,data_tuple)
+            conn.commit()
+
+
+
 elif option=='Managers':
     tablename = 'tbl_Managers'
     data = get_data(tablename)
