@@ -257,7 +257,7 @@ def updatepercentage(percentage,trackerno,resource_id):
     conn.close()
 
 
-def displayGrid(ph):
+def displayGrid(ph, resource_id):
     ph = ph.iloc[::-1]
 
     gb = GridOptionsBuilder.from_dataframe(ph)
@@ -447,7 +447,7 @@ def main_page():
     ph = (GetProjectHours(resource_id, show_option))
     if (ph is not None):
         wl = GetWorkLoad(ph)
-        displayGrid(ph)
+        displayGrid(ph, resource_id)
         displayGantChart(ph)
     else:
         st.write("No projects listed.")
