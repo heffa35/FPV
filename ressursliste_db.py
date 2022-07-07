@@ -98,6 +98,17 @@ def getResourcesHours(resource_id,show_option):
     else:      
         return n
 
+def getProjectResourcesHours(tracker_no):
+    conn = createConnection("./data.db")
+    cur = conn.cursor()
+    cur.execute("SELECT tbl_Projects.Tracker_No, tbl_Projects.Rigname, tbl_Projects.SO_Description, tbl_Resources_Hours.Planned_Hours, tbl_Projects.KO_Promised_Date, tbl_Resources_Hours.Progress_Percentage, tbl_Resources_Hours.Resource_ID from tbl_Resources_Hours INNER JOIN tbl_Projects ON tbl_Resources_Hours.Tracker_No=tbl_Projects.Tracker_No WHERE tbl_Projects.Tracker_No=? ORDER BY tbl_Projects.KO_Promised_Date DESC", (tracker_no,))
+    n = cur.fetchall()
+    if (len(n) < 1):
+        return None
+    else:
+        return n
+
+
 @st.cache(allow_output_mutation=True)
 def GetProjectHours(resource_id, show_option):
     result = getResourcesHours(resource_id, show_option)
@@ -267,6 +278,8 @@ def displayGrid(ph, resource_id):
     gb.configure_column("Progress_Percentage", editable=True, cellEditor='agSelectCellEditor',
                         cellEditorParams={'values': [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]})
     gb.configure_columns(['Holiday','Fixed_Dates','Project_Days','Project_Late_Start'], hide=True)
+
+    gb.configure_selection(selection_mode='single', use_checkbox=True)
     gridoptions = gb.build()
     grid_response = AgGrid(
         ph,
@@ -274,9 +287,12 @@ def displayGrid(ph, resource_id):
         gridOptions=gridoptions,
         width='100%',
         theme="streamlit",
-        fit_columns_on_load=True
+        fit_columns_on_load=True,
+        update_mode=GridUpdateMode.SELECTION_CHANGED
     )
+    print(grid_response)
     if (grid_response['selected_rows']):
+        print(grid_response['selected_rows'])
         ph_test = grid_response['data']
         selected_rows_df = pd.DataFrame(grid_response['selected_rows'])
         tracker_no = selected_rows_df.at[0, 'Tracker_No']
@@ -285,11 +301,14 @@ def displayGrid(ph, resource_id):
         # st.write(selected_rows_df.iat[0,5])
         # st.write(selected_rows_df.iat[0,0])
         # st.write(resource_id)
-
+        st.session_state['SingleProjectViewActive'] = True
+        if 'Tracker_No' not in st.session_state:
+           st.session_state['Tracker_No'] = tracker_no
+        else:
+            st.session_state['Tracker_No'] = tracker_no
         updatepercentage(percentage, tracker_no, resource_id)
         st.legacy_caching.clear_cache()
         st.experimental_rerun()
-
 
 def displayChartOA(wl, names):
     last_date = datetime.datetime.now().date()
@@ -427,31 +446,81 @@ def displayGantChart(ph):
     st.plotly_chart(fig, use_container_width=True)  # Display the plotly chart in Streamlit
 
 
+def singleProjectView(tracker_no):
+    result = getProjectResourcesHours(tracker_no)
+    ph = pd.DataFrame.from_records(result, columns=['Tracker_No','Rigname','SO_Description','Planned_Hours','Promised_Date','Progress_Percentage','Resource_Id'])
+    name=[]
+    spent_hours = 0
+    total_planned_hours = 0
+    for i in range(0, len(ph)):
+        fn=getResourceName(int(ph.at[i,'Resource_Id']))
+        spent_hours += float(ph.at[i,'Progress_Percentage']) * float(ph.at[i, "Planned_Hours"])
+        total_planned_hours += float(ph.at[i,'Planned_Hours'])
+        name.append(fn)
+    total_progress = 0
+    if total_planned_hours > 0:
+        total_progress = int(spent_hours/total_planned_hours)
+    ph['Name']=name
+    ph=ph[['Name','Tracker_No','Rigname','SO_Description','Planned_Hours','Promised_Date','Progress_Percentage','Resource_Id']]
+    st.title(ph.at[0,'Tracker_No']+ " " + ph.at[0,'Rigname']+ " "+ ph.at[0,'SO_Description'])
+    st.header("Promised Date: " + ph.at[0,"Promised_Date"])
+    st.header("Project Progress Percentage: " +str(total_progress))
+    # CSS to inject contained in a string
+    hide_dataframe_row_index = """
+                <style>
+                .row_heading.level0 {display:none}
+                .blank {display:none}
+                </style>
+                """
+
+    # Inject CSS with Markdown
+    st.markdown(hide_dataframe_row_index, unsafe_allow_html=True)
+    st.dataframe(ph[['Name','Planned_Hours','Progress_Percentage']])
+
+#    gb = GridOptionsBuilder.from_dataframe(ph)
+#    gb.configure_default_column(editable=True)
+#    gb.configure_columns(['Tracker_No','Rigname','SO_Description','Promised_Date','Resource_Id'], hide=True)
+#    gridoptions = gb.build()
+#    grid_response = AgGrid(
+#        ph,
+#        editable=False,
+#        gridOptions=gridoptions,
+#        width='100%',
+#        theme="streamlit",
+#        fit_columns_on_load=True
+#    )
+    if (st.button("Return")):
+        st.session_state['SingleProjectViewActive'] = False
+        st.experimental_rerun()
 def main_page():
-    names = getResources()
-    user = st.sidebar.selectbox("Select Employee", names)
-    option = st.sidebar.radio(
-        'What projects to show',
-        ('All', 'Not Completed', 'Completed'))
-    if option == 'Not Completed':
-        show_option = '<'
-    elif option == 'Completed':
-        show_option = '='
-    else:
-        show_option = '<='
+    if 'SingleProjectViewActive' not in st.session_state:
+        st.session_state['SingleProjectViewActive'] = False
+    if st.session_state['SingleProjectViewActive'] == False:
+        names = getResources()
+        user = st.sidebar.selectbox("Select Employee", names)
+        option = st.sidebar.radio(
+            'What projects to show',
+            ('All', 'Not Completed', 'Completed'))
+        if option == 'Not Completed':
+            show_option = '<'
+        elif option == 'Completed':
+            show_option = '='
+        else:
+            show_option = '<='
 
-    ln = user.split(',', 1)[0]
-    fn = user.split(',', 1)[1].lstrip(" ")
-    resource_id = int(getResource_ID(ln, fn))
-    st.title("Field Engineering SVG Individual Projectview")
-    ph = (GetProjectHours(resource_id, show_option))
-    if (ph is not None):
-        wl = GetWorkLoad(ph)
-        displayGrid(ph, resource_id)
-        displayGantChart(ph)
+        ln = user.split(',', 1)[0]
+        fn = user.split(',', 1)[1].lstrip(" ")
+        resource_id = int(getResource_ID(ln, fn))
+        st.title("Field Engineering SVG Individual Projectview")
+        ph = (GetProjectHours(resource_id, show_option))
+        if (ph is not None):
+            wl = GetWorkLoad(ph)
+            displayGrid(ph, resource_id)
+            displayGantChart(ph)
+        else:
+            st.write("No projects listed.")
     else:
-        st.write("No projects listed.")
-
+        singleProjectView(st.session_state['Tracker_No'])
 
 def page2():
     st.title("Field Engineering SVG Department Projectview")
