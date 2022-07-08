@@ -454,12 +454,13 @@ def singleProjectView(tracker_no):
     total_planned_hours = 0
     for i in range(0, len(ph)):
         fn=getResourceName(int(ph.at[i,'Resource_Id']))
-        spent_hours += float(ph.at[i,'Progress_Percentage']) * float(ph.at[i, "Planned_Hours"])
+        spent_hours +=   (float(ph.at[i,'Progress_Percentage']) / 100.0) * float(ph.at[i, "Planned_Hours"])
         total_planned_hours += float(ph.at[i,'Planned_Hours'])
         name.append(fn)
     total_progress = 0
+    print('Spent hours:'+ str(spent_hours) + '\t' + 'total hours:' + str(total_planned_hours))
     if total_planned_hours > 0:
-        total_progress = int(spent_hours/total_planned_hours)
+        total_progress =int( (spent_hours/total_planned_hours) * 100.0)
     ph['Name']=name
     ph=ph[['Name','Tracker_No','Rigname','SO_Description','Planned_Hours','Promised_Date','Progress_Percentage','Resource_Id']]
     st.title(ph.at[0,'Tracker_No']+ " " + ph.at[0,'Rigname']+ " "+ ph.at[0,'SO_Description'])
@@ -492,6 +493,54 @@ def singleProjectView(tracker_no):
     if (st.button("Return")):
         st.session_state['SingleProjectViewActive'] = False
         st.experimental_rerun()
+
+
+def getProjects():
+    conn = createConnection("./data.db")
+    cur = conn.cursor()
+    cur.execute("SELECT tbl_Projects.Tracker_No, tbl_Projects.Rigname, tbl_Projects.SO_Description, tbl_Projects.KO_Promised_Date from tbl_Projects ORDER BY tbl_Projects.KO_Promised_Date DESC")
+    n = cur.fetchall()
+    return n
+
+
+def getProgress(tracker_no):
+    result = getProjectResourcesHours(tracker_no)
+    if result is None:
+        return 0
+    else:
+        ph = pd.DataFrame.from_records(result, columns=['Tracker_No','Rigname','SO_Description','Planned_Hours','Promised_Date','Progress_Percentage','Resource_Id'])
+        spent_hours = 0
+        total_planned_hours = 0
+        for i in range(0, len(ph)):
+            fn=getResourceName(int(ph.at[i,'Resource_Id']))
+            spent_hours += float(ph.at[i,'Progress_Percentage']) * float(0.01) * float(ph.at[i, "Planned_Hours"])
+            total_planned_hours += float(ph.at[i,'Planned_Hours'])
+        total_progress = 0
+        if total_planned_hours > 0:
+            total_progress = int(spent_hours/total_planned_hours*100.0)
+        return total_progress
+
+def getHoursRemaining(tracker_no):
+    result = getProjectResourcesHours(tracker_no)
+    if result is None:
+        return 0
+    else:
+        ph = pd.DataFrame.from_records(result, columns=['Tracker_No','Rigname','SO_Description','Planned_Hours','Promised_Date','Progress_Percentage','Resource_Id'])
+        spent_hours = 0
+        total_planned_hours = 0
+        remaining_hours = 0
+        for i in range(0, len(ph)):
+            fn=getResourceName(int(ph.at[i,'Resource_Id']))
+            spent_hours += float(ph.at[i,'Progress_Percentage']) * float(0.01) * float(ph.at[i, "Planned_Hours"])
+            total_planned_hours += float(ph.at[i,'Planned_Hours'])
+        total_progress = 0
+        if total_planned_hours > 0:
+            total_progress = int(spent_hours/total_planned_hours)
+            remaining_hours = int(total_planned_hours-spent_hours)
+        print('Tracker_No:'+str(tracker_no)+'\t'+'Remaining Hours:'+str(remaining_hours) )
+
+        return remaining_hours
+
 def main_page():
     if 'SingleProjectViewActive' not in st.session_state:
         st.session_state['SingleProjectViewActive'] = False
@@ -523,14 +572,42 @@ def main_page():
         singleProjectView(st.session_state['Tracker_No'])
 
 def page2():
-    st.title("Field Engineering SVG Department Projectview")
+    st.title("Department Resource Booking")
     wloa, names = getWorkLoadOverall()
     displayChartOA(wloa, names)
+
+def page3():
+    st.title("Field Engineering Projects")
+    result = getProjects()
+    projects =pd.DataFrame.from_records(result, columns=['Tracker_No','Rigname','SO_Description','Promised_Date'])
+    progress = []
+    total_remaining_hours = 0
+    for i in range(0, len(projects)):
+        pg = getProgress(projects.at[i,'Tracker_No'])
+        if (pg < 100):
+            remaining_hours = getHoursRemaining(projects.at[i,'Tracker_No'])
+            total_remaining_hours += remaining_hours
+        progress.append(pg)
+    projects['Progress Percentage'] = progress
+
+    #ph = ph.iloc[::-1]
+    gb = GridOptionsBuilder.from_dataframe(projects)
+    gb.configure_default_column(editable=False)
+    gridoptions = gb.build()
+    grid_response = AgGrid(
+        projects,
+        editable=False,
+        gridOptions=gridoptions,
+        theme="streamlit",
+        fit_columns_on_load=True,
+    )
+    st.header('Work hours remaining: ' + str(total_remaining_hours))
 
 
 page_names_to_funcs = {
     "Individual projectview": main_page,
-    "Department": page2,
+    "Department Resource Booking": page2,
+    "Field Engingeering Projects": page3,
 }
 
 show_option = '<='
